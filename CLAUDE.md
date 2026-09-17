@@ -1,6 +1,10 @@
 @AGENTS.md
 @docs/SPEC.md
 
+# Pinta
+
+Nombre del producto: **Pinta** ("¿pinta fulbito el martes?" / "buena pinta"). Dominio objetivo `pinta.uy`.
+
 # Convenciones del repo
 
 - Stack: Next.js (App Router) + TypeScript + Prisma + Supabase (Postgres + Auth) + Tailwind + shadcn/ui, deploy en Vercel.

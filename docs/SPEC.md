@@ -1,4 +1,4 @@
-# Sistema de Reservas — Barbería + Cancha (con Ranking)
+# Pinta — Sistema de Reservas (Barbería + Cancha con Ranking)
 
 > Documento de especificación para desarrollo con Claude Code.
 > Ponelo en la raíz del repo como `CLAUDE.md` o `docs/SPEC.md` para que Claude Code tenga el contexto siempre a mano.
