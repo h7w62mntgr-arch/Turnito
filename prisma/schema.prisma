@@ -1,0 +1,210 @@
+// Schema del sistema de reservas. Ver docs/SPEC.md sección 8.
+// Restricciones que Prisma no sabe expresar (anti doble-booking, checks, RLS)
+// viven en SQL dentro de la migración inicial.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- NÚCLEO (compartido por todos los sabores) ---
+
+model Business {
+  id        String       @id @default(cuid())
+  name      String
+  type      BusinessType
+  slug      String       @unique // para /reservar/[slug]
+  phone     String?
+  address   String?
+  timezone  String       @default("America/Montevideo")
+  subStatus SubStatus    @default(TRIAL)
+  owners    Owner[]
+  resources Resource[]
+  services  Service[]
+  schedules Schedule[]
+  bookings  Booking[]
+  customers Customer[]
+  teams     Team[] // solo cancha
+  leagues   League[] // solo cancha
+  createdAt DateTime     @default(now()) @db.Timestamptz(3)
+}
+
+enum BusinessType {
+  BARBERIA
+  CANCHA
+}
+
+enum SubStatus {
+  TRIAL
+  ACTIVE
+  PAUSED
+}
+
+model Owner {
+  id         String   @id @default(cuid())
+  authUserId String   @unique // id de Supabase Auth
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  email      String
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([businessId])
+}
+
+// Lo reservable: barbero/silla (barbería) o cada cancha (cancha)
+model Resource {
+  id         String     @id @default(cuid())
+  businessId String
+  business   Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String // "Barbero Juan" / "Cancha 1"
+  active     Boolean    @default(true)
+  schedules  Schedule[]
+  bookings   Booking[]
+
+  @@index([businessId])
+}
+
+// Servicio (barbería) o tipo de franja (cancha)
+model Service {
+  id          String    @id @default(cuid())
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name        String // "Corte", "Corte + barba", "Fútbol 5 - 1h"
+  durationMin Int
+  price       Decimal   @db.Decimal(10, 2)
+  active      Boolean   @default(true)
+  bookings    Booking[]
+
+  @@index([businessId])
+}
+
+// Disponibilidad semanal recurrente. resourceId null = aplica a todo el negocio.
+model Schedule {
+  id         String    @id @default(cuid())
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  resourceId String?
+  resource   Resource? @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int // 0=domingo ... 6=sábado
+  startTime  String // "09:00", hora local del negocio
+  endTime    String // "18:00", hora local del negocio
+
+  @@index([businessId, dayOfWeek])
+  @@index([resourceId])
+}
+
+model Customer {
+  id          String    @id @default(cuid())
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name        String
+  phone       String
+  email       String?
+  bookings    Booking[]
+  visitsCount Int       @default(0) // para fidelización (fase 3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@unique([businessId, phone])
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  businessId    String
+  business      Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  resourceId    String
+  resource      Resource      @relation(fields: [resourceId], references: [id])
+  serviceId     String?
+  service       Service?      @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  customerId    String?
+  customer      Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerName  String // snapshot, por si reserva sin registrarse
+  customerPhone String
+  startAt       DateTime      @db.Timestamptz(3)
+  endAt         DateTime      @db.Timestamptz(3)
+  status        BookingStatus @default(PENDING)
+  depositPaid   Boolean       @default(false)
+  price         Decimal?      @db.Decimal(10, 2)
+  match         Match? // si esta reserva es un partido de liga
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+
+  @@index([businessId, startAt])
+  @@index([resourceId, startAt])
+  @@index([customerId])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+// --- MÓDULO RANKING / LIGA (solo cancha) ---
+
+model Team {
+  id           String   @id @default(cuid())
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name         String
+  logoUrl      String?
+  captainName  String?
+  captainPhone String?
+  homeMatches  Match[]  @relation("HomeTeam")
+  awayMatches  Match[]  @relation("AwayTeam")
+  leaguesWon   League[] @relation("LeagueWinner")
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([businessId, name])
+}
+
+model League {
+  id           String       @id @default(cuid())
+  businessId   String
+  business     Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name         String // "Liga Septiembre 2026"
+  startDate    DateTime     @db.Timestamptz(3)
+  endDate      DateTime     @db.Timestamptz(3)
+  status       LeagueStatus @default(ACTIVE)
+  matches      Match[]
+  prizeDesc    String? // "Cancha gratis + Gatorade + 3kg chorizo"
+  winnerTeamId String?
+  winnerTeam   Team?        @relation("LeagueWinner", fields: [winnerTeamId], references: [id], onDelete: SetNull)
+  createdAt    DateTime     @default(now()) @db.Timestamptz(3)
+
+  @@index([businessId, status])
+}
+
+enum LeagueStatus {
+  ACTIVE
+  FINISHED
+}
+
+model Match {
+  id         String      @id @default(cuid())
+  leagueId   String
+  league     League      @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  bookingId  String?     @unique
+  booking    Booking?    @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  homeTeamId String
+  homeTeam   Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeamId String
+  awayTeam   Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  homeScore  Int?
+  awayScore  Int?
+  playedAt   DateTime?   @db.Timestamptz(3)
+  status     MatchStatus @default(SCHEDULED)
+
+  @@index([leagueId, status])
+  @@index([homeTeamId])
+  @@index([awayTeamId])
+}
+
+enum MatchStatus {
+  SCHEDULED
+  PLAYED
+}
