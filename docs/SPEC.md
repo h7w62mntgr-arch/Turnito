@@ -60,6 +60,10 @@ Se construye **una sola cosa**. Cada sabor activa o no el módulo de ranking. Ma
 
 ## 5. Módulo Ranking / Liga (corazón del sabor cancha)
 
+> Diseño detallado (cómo se arman los partidos, cómo entra el resultado y los puntos extra
+> por horario flojo): [liga-como-funciona.md](liga-como-funciona.md).
+> Preguntas de validación Fase 0: [validacion-cancha.md](validacion-cancha.md).
+
 > Regla de diseño clave: **el motor que engancha es la tabla, no el premio.** La tabla tiene que estar buenísima, pública, y actualizarse al toque después de cada partido. El premio es mensual y secundario (una frutilla que le da cierre al mes).
 
 Funcionalidad:
