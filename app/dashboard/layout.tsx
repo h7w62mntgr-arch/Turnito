@@ -14,7 +14,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
           </Link>
           <nav className="flex gap-4 text-sm">
             <Link href="/dashboard" className="text-muted-foreground hover:text-foreground">
-              Inicio
+              Agenda
             </Link>
             <Link href="/dashboard/setup" className="text-muted-foreground hover:text-foreground">
               Configuración
