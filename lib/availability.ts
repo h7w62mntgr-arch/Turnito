@@ -109,9 +109,62 @@ export function computeSlots({
     }));
 }
 
+
 // --- Acceso a datos ---
 
 const BLOCKING_STATUSES = ["PENDING", "CONFIRMED"] as const;
+
+type Context = {
+  timeZone: string;
+  durationMin: number;
+  resources: ResourceInput[];
+  schedules: ScheduleInput[];
+};
+
+// Todo lo que no depende del día se consulta una sola vez.
+async function loadContext(
+  businessId: string,
+  serviceId: string,
+  resourceId?: string,
+): Promise<Context | null> {
+  const [business, service, resources, schedules] = await Promise.all([
+    prisma.business.findUnique({ where: { id: businessId }, select: { timezone: true } }),
+    prisma.service.findFirst({
+      where: { id: serviceId, businessId, active: true },
+      select: { durationMin: true },
+    }),
+    prisma.resource.findMany({
+      where: { businessId, active: true, ...(resourceId ? { id: resourceId } : {}) },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.schedule.findMany({
+      where: { businessId },
+      select: { dayOfWeek: true, startTime: true, endTime: true, resourceId: true },
+    }),
+  ]);
+  if (!business || !service || resources.length === 0) return null;
+  return { timeZone: business.timezone, durationMin: service.durationMin, resources, schedules };
+}
+
+// Reservas que pueden tapar horarios entre dos días (con un día de margen a cada lado).
+async function loadBookings(
+  businessId: string,
+  context: Context,
+  from: CalendarDate,
+  to: CalendarDate,
+) {
+  return prisma.booking.findMany({
+    where: {
+      businessId,
+      resourceId: { in: context.resources.map((r) => r.id) },
+      status: { in: [...BLOCKING_STATUSES] },
+      startAt: { lt: zonedToUtc(addDays(to, 2), "00:00", context.timeZone) },
+      endAt: { gt: zonedToUtc(addDays(from, -1), "00:00", context.timeZone) },
+    },
+    select: { resourceId: true, startAt: true, endAt: true },
+  });
+}
 
 /** Horarios libres de un negocio para un servicio y un día. */
 export async function getAvailability({
@@ -129,60 +182,16 @@ export async function getAvailability({
   now?: Date;
   minNoticeMin?: number;
 }): Promise<Slot[]> {
-  const business = await prisma.business.findUnique({
-    where: { id: businessId },
-    select: { timezone: true },
-  });
-  const service = await prisma.service.findFirst({
-    where: { id: serviceId, businessId, active: true },
-    select: { durationMin: true },
-  });
-  if (!business || !service) return [];
-
-  const resources = await prisma.resource.findMany({
-    where: { businessId, active: true, ...(resourceId ? { id: resourceId } : {}) },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
-  if (resources.length === 0) return [];
-
-  const resourceIds = resources.map((r) => r.id);
-  const timeZone = business.timezone;
-  // Se traen las reservas del día con un margen a cada lado: una reserva que
-  // empieza antes de la apertura puede seguir ocupando el primer horario.
-  const from = zonedToUtc(addDays(date, -1), "00:00", timeZone);
-  const to = zonedToUtc(addDays(date, 2), "00:00", timeZone);
-
-  const [schedules, bookings] = await Promise.all([
-    prisma.schedule.findMany({
-      where: { businessId, dayOfWeek: dayOfWeek(date) },
-      select: { dayOfWeek: true, startTime: true, endTime: true, resourceId: true },
-    }),
-    prisma.booking.findMany({
-      where: {
-        businessId,
-        resourceId: { in: resourceIds },
-        status: { in: [...BLOCKING_STATUSES] },
-        startAt: { lt: to },
-        endAt: { gt: from },
-      },
-      select: { resourceId: true, startAt: true, endAt: true },
-    }),
-  ]);
-
-  return computeSlots({
-    date,
-    timeZone,
-    durationMin: service.durationMin,
-    resources,
-    schedules,
-    bookings,
-    now,
-    minNoticeMin,
-  });
+  const context = await loadContext(businessId, serviceId, resourceId);
+  if (!context) return [];
+  const bookings = await loadBookings(businessId, context, date, date);
+  return computeSlots({ ...context, date, bookings, now, minNoticeMin });
 }
 
-/** Días con al menos un horario libre, desde hoy. Para pintar el selector de fechas. */
+/**
+ * Días con al menos un horario libre, desde hoy.
+ * Hace las consultas una sola vez para todo el rango: la base puede estar lejos.
+ */
 export async function getNextAvailableDays({
   businessId,
   serviceId,
@@ -195,19 +204,19 @@ export async function getNextAvailableDays({
   days?: number;
   now?: Date;
   minNoticeMin?: number;
-}) {
-  const business = await prisma.business.findUnique({
-    where: { id: businessId },
-    select: { timezone: true },
-  });
-  if (!business) return [];
+}): Promise<{ date: CalendarDate; slots: number }[]> {
+  const context = await loadContext(businessId, serviceId);
+  if (!context) return [];
 
-  const start = today(business.timezone, now);
-  const result: { date: CalendarDate; slots: number }[] = [];
-  for (let i = 0; i < days; i++) {
+  const start = today(context.timeZone, now);
+  const end = addDays(start, days - 1);
+  const bookings = await loadBookings(businessId, context, start, end);
+
+  return Array.from({ length: days }, (_, i) => {
     const date = addDays(start, i);
-    const slots = await getAvailability({ businessId, serviceId, date, now, minNoticeMin });
-    result.push({ date, slots: slots.length });
-  }
-  return result;
+    return {
+      date,
+      slots: computeSlots({ ...context, date, bookings, now, minNoticeMin }).length,
+    };
+  });
 }
