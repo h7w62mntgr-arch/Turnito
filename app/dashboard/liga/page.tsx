@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ActionForm, SubmitButton } from "@/components/action-form";
 import { StandingsTable } from "@/components/standings-table";
+import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ import {
   borrarCuadro,
   borrarFranjaBonus,
   borrarPartido,
+  cambiarInscripciones,
   cargarResultado,
   cerrarLiga,
   crearCuadro,
@@ -45,7 +47,7 @@ export default async function LigaPage() {
   const league = await getCurrentLeague(business.id);
 
   const [teams, standings, matches, bonusSlots, winner] = await Promise.all([
-    prisma.team.findMany({ where: { businessId: business.id }, orderBy: { name: "asc" } }),
+    prisma.team.findMany({ where: { businessId: business.id }, orderBy: { createdAt: "desc" } }),
     league ? getStandings(business.id, league.id) : [],
     league ? getRecentMatches(business.id, league.id) : [],
     league
@@ -58,6 +60,7 @@ export default async function LigaPage() {
   ]);
 
   const isActive = league?.status === "ACTIVE";
+  const teamsByName = [...teams].sort((a, b) => a.name.localeCompare(b.name, "es"));
   const days = league ? leagueDays(league, timeZone) : null;
   const publicPath = `/liga/${business.slug}`;
   const shareUrl = await publicUrl(publicPath);
@@ -171,7 +174,7 @@ export default async function LigaPage() {
                     <option value="" disabled>
                       Cuadro 1
                     </option>
-                    {teams.map((t) => (
+                    {teamsByName.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name}
                       </option>
@@ -192,7 +195,7 @@ export default async function LigaPage() {
                     <option value="" disabled>
                       Cuadro 2
                     </option>
-                    {teams.map((t) => (
+                    {teamsByName.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name}
                       </option>
@@ -325,14 +328,39 @@ export default async function LigaPage() {
           <CardDescription>Los equipos que juegan en tu cancha. Siguen de una liga a la otra.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2.5">
+            <div className="text-sm">
+              <p className="font-medium">
+                Inscripciones {business.teamSignupOpen ? "abiertas" : "cerradas"}
+              </p>
+              <p className="text-muted-foreground">
+                {business.teamSignupOpen
+                  ? "Los capitanes pueden anotar su cuadro desde la tabla pública."
+                  : "Solo vos podés anotar cuadros."}
+              </p>
+            </div>
+            <ActionForm action={cambiarInscripciones} className="items-end gap-1">
+              <input type="hidden" name="open" value={String(!business.teamSignupOpen)} />
+              <SubmitButton size="sm" variant="outline">
+                {business.teamSignupOpen ? "Cerrar inscripciones" : "Abrir inscripciones"}
+              </SubmitButton>
+            </ActionForm>
+          </div>
           {teams.length > 0 && (
             <ul className="divide-y rounded-lg border">
               {teams.map((t) => (
                 <li key={t.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
                   <span className="font-medium">{t.name}</span>
+                  {t.selfRegistered && <Badge variant="secondary">Se anotó solo</Badge>}
                   {(t.captainName || t.captainPhone) && (
                     <span className="text-sm text-muted-foreground">
-                      Capitán: {[t.captainName, t.captainPhone].filter(Boolean).join(" · ")}
+                      Capitán: {t.captainName}
+                      {t.captainName && t.captainPhone && " · "}
+                      {t.captainPhone && (
+                        <a href={`tel:${t.captainPhone}`} className="underline underline-offset-4">
+                          {t.captainPhone}
+                        </a>
+                      )}
                     </span>
                   )}
                   <ActionForm action={borrarCuadro} className="ml-auto items-end gap-1">

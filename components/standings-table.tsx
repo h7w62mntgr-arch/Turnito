@@ -2,7 +2,16 @@ import type { StandingRow } from "@/lib/standings";
 import { cn } from "@/lib/utils";
 
 // Tabla de posiciones. En el celular se esconden las columnas de detalle.
-export function StandingsTable({ rows, highlightBonus }: { rows: StandingRow[]; highlightBonus?: boolean }) {
+export function StandingsTable({
+  rows,
+  highlightBonus,
+  highlightTeamId,
+}: {
+  rows: StandingRow[];
+  highlightBonus?: boolean;
+  /** Fila a resaltar, por ejemplo el cuadro que se acaba de anotar. */
+  highlightTeamId?: string;
+}) {
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground">Todavía no hay cuadros anotados.</p>;
   }
@@ -52,7 +61,14 @@ export function StandingsTable({ rows, highlightBonus }: { rows: StandingRow[]; 
         </thead>
         <tbody className="divide-y">
           {rows.map((row) => (
-            <tr key={row.teamId} className={cn(row.position === 1 && row.played > 0 && "bg-amber-500/10")}>
+            <tr
+              key={row.teamId}
+              aria-current={row.teamId === highlightTeamId ? "true" : undefined}
+              className={cn(
+                row.position === 1 && row.played > 0 && "bg-amber-500/10",
+                row.teamId === highlightTeamId && "bg-emerald-500/15 font-semibold",
+              )}
+            >
               <td className="px-2 py-2 text-center tabular-nums text-muted-foreground">{row.position}</td>
               <td className="px-2 py-2 font-medium">{row.name}</td>
               <td className="px-2 py-2 text-center tabular-nums">{row.played}</td>

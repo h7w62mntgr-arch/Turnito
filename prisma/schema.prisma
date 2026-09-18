@@ -14,23 +14,25 @@ datasource db {
 // --- NÚCLEO (compartido por todos los sabores) ---
 
 model Business {
-  id        String       @id @default(cuid())
-  name      String
-  type      BusinessType
-  slug      String       @unique // para /reservar/[slug]
-  phone     String?
-  address   String?
-  timezone  String       @default("America/Montevideo")
-  subStatus SubStatus    @default(TRIAL)
-  owners    Owner[]
-  resources Resource[]
-  services  Service[]
-  schedules Schedule[]
-  bookings  Booking[]
-  customers Customer[]
-  teams     Team[] // solo cancha
-  leagues   League[] // solo cancha
-  createdAt DateTime     @default(now()) @db.Timestamptz(3)
+  id             String       @id @default(cuid())
+  name           String
+  type           BusinessType
+  slug           String       @unique // para /reservar/[slug]
+  phone          String?
+  address        String?
+  timezone       String       @default("America/Montevideo")
+  subStatus      SubStatus    @default(TRIAL)
+  owners         Owner[]
+  resources      Resource[]
+  services       Service[]
+  schedules      Schedule[]
+  bookings       Booking[]
+  customers      Customer[]
+  teams          Team[] // solo cancha
+  leagues        League[] // solo cancha
+  // Los cuadros se pueden anotar solos desde la tabla pública (solo cancha).
+  teamSignupOpen Boolean      @default(true)
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
 }
 
 enum BusinessType {
@@ -147,17 +149,19 @@ enum BookingStatus {
 // --- MÓDULO RANKING / LIGA (solo cancha) ---
 
 model Team {
-  id           String   @id @default(cuid())
-  businessId   String
-  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  name         String
-  logoUrl      String?
-  captainName  String?
-  captainPhone String?
-  homeMatches  Match[]  @relation("HomeTeam")
-  awayMatches  Match[]  @relation("AwayTeam")
-  leaguesWon   League[] @relation("LeagueWinner")
-  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  id             String   @id @default(cuid())
+  businessId     String
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name           String
+  logoUrl        String?
+  captainName    String?
+  captainPhone   String?
+  // true si lo anotó el capitán desde la tabla pública, false si lo cargó el dueño.
+  selfRegistered Boolean  @default(false)
+  homeMatches    Match[]  @relation("HomeTeam")
+  awayMatches    Match[]  @relation("AwayTeam")
+  leaguesWon     League[] @relation("LeagueWinner")
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
 
   @@unique([businessId, name])
 }

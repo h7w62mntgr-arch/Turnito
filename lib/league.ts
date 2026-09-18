@@ -1,3 +1,4 @@
+import { normalizePhone } from "@/lib/booking";
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { SetupError } from "@/lib/setup";
@@ -103,17 +104,92 @@ export async function deleteBonusSlot(businessId: string, slotId: string) {
 
 // --- Cuadros ---
 
+// "Los Pibes" y "los pibes " son el mismo cuadro.
+async function assertNameFree(businessId: string, name: string) {
+  const existing = await prisma.team.findFirst({
+    where: { businessId, name: { equals: name.trim(), mode: "insensitive" } },
+    select: { id: true },
+  });
+  if (existing) throw new SetupError("Ya hay un cuadro con ese nombre.");
+}
+
 export async function createTeam(
   businessId: string,
   data: { name: string; captainName: string | null; captainPhone: string | null },
 ) {
   await requireCancha(businessId);
+  await assertNameFree(businessId, data.name);
+  const captainPhone = data.captainPhone ? (normalizePhone(data.captainPhone) ?? data.captainPhone) : null;
   try {
-    await prisma.team.create({ data: { businessId, ...data } });
+    await prisma.team.create({ data: { businessId, ...data, captainPhone } });
   } catch (e) {
     if (isUniqueError(e)) throw new SetupError("Ya hay un cuadro con ese nombre.");
     throw e;
   }
+}
+
+/** Cuadros que un mismo celular puede anotar solo, y cuántos por día acepta una cancha. */
+const MAX_TEAMS_PER_PHONE = 2;
+const MAX_SELF_SIGNUPS_PER_DAY = 20;
+
+/**
+ * El capitán anota su cuadro desde la tabla pública, sin cuenta.
+ * El cuadro aparece al toque en la tabla; si es en joda, el dueño lo borra desde su panel.
+ */
+export async function registerTeamPublic(
+  slug: string,
+  data: { name: string; captainName: string; captainPhone: string },
+) {
+  const business = await prisma.business.findUnique({
+    where: { slug },
+    select: { id: true, type: true, teamSignupOpen: true },
+  });
+  if (!business || business.type !== "CANCHA") throw new SetupError("No encontramos esta cancha.");
+  if (!business.teamSignupOpen) {
+    throw new SetupError("Las inscripciones están cerradas. Hablá con la cancha para anotarte.");
+  }
+
+  const captainPhone = normalizePhone(data.captainPhone);
+  if (!captainPhone) throw new SetupError("Revisá el celular: tiene que tener al menos 8 dígitos.");
+
+  const [byPhone, today] = await Promise.all([
+    prisma.team.count({ where: { businessId: business.id, captainPhone } }),
+    prisma.team.count({
+      where: {
+        businessId: business.id,
+        selfRegistered: true,
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60_000) },
+      },
+    }),
+  ]);
+  if (byPhone >= MAX_TEAMS_PER_PHONE) {
+    throw new SetupError(`Con este celular ya hay ${MAX_TEAMS_PER_PHONE} cuadros anotados.`);
+  }
+  if (today >= MAX_SELF_SIGNUPS_PER_DAY) {
+    throw new SetupError("Hoy se anotaron muchos cuadros. Probá mañana o hablá con la cancha.");
+  }
+
+  await assertNameFree(business.id, data.name);
+  try {
+    return await prisma.team.create({
+      data: {
+        businessId: business.id,
+        name: data.name.trim(),
+        captainName: data.captainName.trim(),
+        captainPhone,
+        selfRegistered: true,
+      },
+      select: { id: true, name: true },
+    });
+  } catch (e) {
+    if (isUniqueError(e)) throw new SetupError("Ya hay un cuadro con ese nombre.");
+    throw e;
+  }
+}
+
+export async function setTeamSignupOpen(businessId: string, open: boolean) {
+  await requireCancha(businessId);
+  await prisma.business.update({ where: { id: businessId }, data: { teamSignupOpen: open } });
 }
 
 export async function deleteTeam(businessId: string, teamId: string) {

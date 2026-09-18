@@ -103,3 +103,7 @@ export async function agregarFranjaBonus(_s: ActionState, formData: FormData) {
 export async function borrarFranjaBonus(_s: ActionState, formData: FormData) {
   return run((businessId) => liga.deleteBonusSlot(businessId, text(formData, "id")));
 }
+
+export async function cambiarInscripciones(_s: ActionState, formData: FormData) {
+  return run((businessId) => liga.setTeamSignupOpen(businessId, text(formData, "open") === "true"));
+}

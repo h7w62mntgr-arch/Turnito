@@ -1,11 +1,30 @@
 # Liga y ranking: cómo funciona
 
-> Diseño del módulo de liga para el sabor cancha. Todavía **no está construido**:
-> esto es el plan para la Fase 2 (ver [SPEC.md](SPEC.md) sección 5 y 10).
+> Diseño del módulo de liga para el sabor cancha (ver [SPEC.md](SPEC.md) sección 5 y 10).
+> **Ya construido:** liga con tabla, carga de resultados por el dueño, puntos extra por
+> horario flojo, inscripción de cuadros por el capitán, tabla pública y cartel con QR.
+> Lo que sigue pendiente está marcado en el orden de construcción, al final.
 
 La regla que ordena todo: **nadie se baja una app ni se crea una cuenta.** Los jugadores
 entran por el link de la cancha y siguen coordinando por WhatsApp, que es donde ya están.
 El único login del sistema es el del dueño.
+
+---
+
+## 0. Cómo entra un cuadro a la liga
+
+**Se anota el capitán, no el dueño.** En la tabla pública (`/liga/<cancha>`) hay un botón
+**"Anotar mi cuadro"**: nombre del cuadro, nombre del capitán y celular. Sin cuenta.
+
+- El cuadro **aparece al toque en la tabla**, sin aprobación. Ver su nombre ahí es lo que
+  engancha. Si alguien se anota en joda, el dueño lo borra desde su panel.
+- Al anotarse, el capitán ve un botón para **mandar el link al grupo de su cuadro**.
+- El celular es obligatorio (el dueño necesita el contacto) y **no aparece en la tabla**.
+- Protecciones: máximo 2 cuadros por celular, nombres sin repetir (sin importar
+  mayúsculas), tope de 20 inscripciones por día por cancha y un campo trampa para bots.
+- El dueño puede **cerrar las inscripciones** con un botón (por ejemplo, cuando arranca la
+  liga) y **siempre puede anotar cuadros a mano**, para el que no se maneja con el celular.
+- En el panel, los cuadros que se anotaron solos tienen la marca "Se anotó solo".
 
 ---
 
@@ -105,9 +124,10 @@ Mostrar la tabla en el celular vende más que cualquier explicación.
 
 ## Orden de construcción sugerido
 
-1. Equipos, liga y carga de resultados por el dueño (panel).
-2. Tabla de posiciones pública en `/liga/[id]`, con link y QR para compartir.
-3. Puntos por horario flojo, configurables.
-4. QR en la cancha para que el capitán cargue el resultado.
-5. Tablero de desafíos ("busco rival") en la página pública.
-6. Confirmación del rival y resultados provisorios.
+1. ✅ Equipos, liga y carga de resultados por el dueño (panel).
+2. ✅ Tabla de posiciones pública en `/liga/<cancha>` (link fijo por cancha), con cartel y QR.
+3. ✅ Puntos por horario flojo, configurables.
+4. ✅ Inscripción de cuadros por el capitán desde la tabla pública.
+5. QR en la cancha para que el capitán cargue el resultado.
+6. Tablero de desafíos ("busco rival") en la página pública.
+7. Confirmación del rival y resultados provisorios.

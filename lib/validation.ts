@@ -122,3 +122,13 @@ export const BonusSlotSchema = z
     error: "La hora de fin tiene que ser después de la de inicio.",
     path: ["endTime"],
   });
+
+// Inscripción de un cuadro desde la tabla pública: acá el contacto del capitán es obligatorio.
+export const PublicTeamSchema = z.object({
+  name: z.string().trim().min(2, { error: "Poné el nombre del cuadro." }).max(40, { error: "Máximo 40 caracteres." }),
+  captainName: z.string().trim().min(2, { error: "Poné tu nombre." }).max(60),
+  captainPhone: z
+    .string()
+    .trim()
+    .regex(/^[+\d\s()-]{8,20}$/, { error: "Revisá el celular: tiene que tener al menos 8 dígitos." }),
+});
