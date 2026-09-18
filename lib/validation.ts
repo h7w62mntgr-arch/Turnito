@@ -67,3 +67,58 @@ export const ScheduleSchema = z
 export function firstError(error: z.ZodError) {
   return error.issues[0]?.message ?? "Datos inválidos.";
 }
+
+// --- Liga ---
+
+const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { error: "Fecha inválida." });
+const score = z.coerce
+  .number({ error: "Marcador inválido." })
+  .int({ error: "El marcador va en números enteros." })
+  .min(0, { error: "El marcador no puede ser negativo." })
+  .max(99, { error: "Marcador demasiado alto." });
+
+export const LeagueSchema = z
+  .object({
+    name: z.string().trim().min(2, { error: "Poné un nombre a la liga." }).max(60),
+    startDate: dateString,
+    endDate: dateString,
+    prizeDesc: optionalText(120),
+  })
+  .refine((l) => l.endDate > l.startDate, {
+    error: "La fecha de cierre tiene que ser después de la de inicio.",
+    path: ["endDate"],
+  });
+
+export const TeamSchema = z.object({
+  name: z.string().trim().min(2, { error: "Poné el nombre del cuadro." }).max(40),
+  captainName: optionalText(60),
+  captainPhone: optionalText(20).refine((v) => v === null || /^[+\d\s()-]{6,20}$/.test(v), {
+    error: "Teléfono inválido.",
+  }),
+});
+
+export const MatchSchema = z
+  .object({
+    homeTeamId: z.string().min(1, { error: "Elegí el primer cuadro." }),
+    awayTeamId: z.string().min(1, { error: "Elegí el segundo cuadro." }),
+    homeScore: score,
+    awayScore: score,
+    date: dateString,
+    time: time,
+  })
+  .refine((m) => m.homeTeamId !== m.awayTeamId, {
+    error: "Un cuadro no puede jugar contra sí mismo.",
+    path: ["awayTeamId"],
+  });
+
+export const BonusSlotSchema = z
+  .object({
+    dayOfWeek: z.coerce.number().int().min(0).max(6, { error: "Día inválido." }),
+    startTime: time,
+    endTime: time,
+    points: z.coerce.number().int().min(1, { error: "Mínimo 1 punto." }).max(5, { error: "Máximo 5 puntos." }),
+  })
+  .refine((s) => s.endTime > s.startTime, {
+    error: "La hora de fin tiene que ser después de la de inicio.",
+    path: ["endTime"],
+  });

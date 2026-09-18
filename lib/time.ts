@@ -106,3 +106,12 @@ export function formatLongDate(date: CalendarDate) {
 }
 
 export const minutesToMs = (minutes: number) => minutes * 60_000;
+
+// "Setiembre 2026"
+export function formatMonthYear({ year, month }: CalendarDate) {
+  const name = monthNames[month - 1];
+  return `${name[0].toUpperCase()}${name.slice(1)} ${year}`;
+}
+
+// "22/9"
+export const formatShortDate = ({ day, month }: CalendarDate) => `${day}/${month}`;

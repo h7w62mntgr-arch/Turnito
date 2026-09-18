@@ -163,20 +163,38 @@ model Team {
 }
 
 model League {
-  id           String       @id @default(cuid())
+  id           String            @id @default(cuid())
   businessId   String
-  business     Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business     Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
   name         String // "Liga Septiembre 2026"
-  startDate    DateTime     @db.Timestamptz(3)
-  endDate      DateTime     @db.Timestamptz(3)
-  status       LeagueStatus @default(ACTIVE)
+  startDate    DateTime          @db.Timestamptz(3)
+  endDate      DateTime          @db.Timestamptz(3)
+  status       LeagueStatus      @default(ACTIVE)
   matches      Match[]
   prizeDesc    String? // "Cancha gratis + Gatorade + 3kg chorizo"
   winnerTeamId String?
-  winnerTeam   Team?        @relation("LeagueWinner", fields: [winnerTeamId], references: [id], onDelete: SetNull)
-  createdAt    DateTime     @default(now()) @db.Timestamptz(3)
+  winnerTeam   Team?             @relation("LeagueWinner", fields: [winnerTeamId], references: [id], onDelete: SetNull)
+  // Tabla de puntos, configurable por liga.
+  pointsWin    Int               @default(3)
+  pointsDraw   Int               @default(1)
+  pointsLoss   Int               @default(0)
+  bonusSlots   LeagueBonusSlot[]
+  createdAt    DateTime          @default(now()) @db.Timestamptz(3)
 
   @@index([businessId, status])
+}
+
+// Franja que da puntos extra por jugar en un horario flojo (docs/liga-como-funciona.md §3).
+model LeagueBonusSlot {
+  id        String @id @default(cuid())
+  leagueId  String
+  league    League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  dayOfWeek Int // 0=domingo ... 6=sábado
+  startTime String // "18:00", hora local del negocio
+  endTime   String // "21:00"
+  points    Int    @default(1)
+
+  @@index([leagueId])
 }
 
 enum LeagueStatus {
@@ -185,19 +203,23 @@ enum LeagueStatus {
 }
 
 model Match {
-  id         String      @id @default(cuid())
-  leagueId   String
-  league     League      @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  bookingId  String?     @unique
-  booking    Booking?    @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  homeTeamId String
-  homeTeam   Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeamId String
-  awayTeam   Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
-  homeScore  Int?
-  awayScore  Int?
-  playedAt   DateTime?   @db.Timestamptz(3)
-  status     MatchStatus @default(SCHEDULED)
+  id          String      @id @default(cuid())
+  leagueId    String
+  league      League      @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  bookingId   String?     @unique
+  booking     Booking?    @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  homeTeamId  String
+  homeTeam    Team        @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: Cascade)
+  awayTeamId  String
+  awayTeam    Team        @relation("AwayTeam", fields: [awayTeamId], references: [id], onDelete: Cascade)
+  homeScore   Int?
+  awayScore   Int?
+  playedAt    DateTime?   @db.Timestamptz(3)
+  status      MatchStatus @default(SCHEDULED)
+  // Puntos extra que suman los dos cuadros por jugar en un horario flojo.
+  // Se guardan al cargar el resultado: si el dueño cambia las franjas después,
+  // los partidos ya jugados no cambian.
+  bonusPoints Int         @default(0)
 
   @@index([leagueId, status])
   @@index([homeTeamId])

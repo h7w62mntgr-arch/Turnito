@@ -7,7 +7,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="border-b">
+      <header className="border-b print:hidden">
         <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
           <Link href="/dashboard" className="text-lg font-semibold tracking-tight">
             Pinta
@@ -16,6 +16,11 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
             <Link href="/dashboard" className="text-muted-foreground hover:text-foreground">
               Agenda
             </Link>
+            {owner.business.type === "CANCHA" && (
+              <Link href="/dashboard/liga" className="text-muted-foreground hover:text-foreground">
+                Liga
+              </Link>
+            )}
             <Link href="/dashboard/setup" className="text-muted-foreground hover:text-foreground">
               Configuración
             </Link>
