@@ -6,7 +6,11 @@ import { BookingError, createPublicBooking } from "@/lib/booking";
 
 export async function reservar(_state: ActionState, formData: FormData): Promise<ActionState> {
   const text = (key: string) => String(formData.get(key) ?? "");
-  const fields = { customerName: text("customerName"), customerPhone: text("customerPhone") };
+  const fields = {
+    customerName: text("customerName"),
+    customerPhone: text("customerPhone"),
+    paymentMethod: text("paymentMethod"),
+  };
   const slug = text("slug");
   const startAt = new Date(text("startAt"));
   if (!slug || Number.isNaN(startAt.getTime())) {
@@ -22,6 +26,7 @@ export async function reservar(_state: ActionState, formData: FormData): Promise
       resourceId: text("resourceId") || undefined,
       customerName: text("customerName"),
       customerPhone: text("customerPhone"),
+      paymentMethod: text("paymentMethod") || undefined,
     });
     bookingId = booking.id;
   } catch (e) {

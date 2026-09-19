@@ -1,5 +1,7 @@
 import { getAvailability } from "@/lib/availability";
 import { Prisma } from "@/lib/generated/prisma/client";
+import type { PaymentMethod } from "@/lib/generated/prisma/enums";
+import { availableMethods, depositFor } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
 import { addDays, formatDate, today } from "@/lib/time";
 
@@ -29,6 +31,7 @@ export async function getPublicBusiness(slug: string) {
       address: true,
       timezone: true,
       subStatus: true,
+      depositAmount: true,
       services: {
         where: { active: true },
         orderBy: { name: "asc" },
@@ -52,6 +55,7 @@ export async function createPublicBooking(input: {
   resourceId?: string;
   customerName: string;
   customerPhone: string;
+  paymentMethod?: string;
   now?: Date;
 }) {
   const now = input.now ?? new Date();
@@ -75,6 +79,10 @@ export async function createPublicBooking(input: {
   if (input.startAt.getTime() < now.getTime() || formatDate(date) > formatDate(lastDay)) {
     throw new BookingError("Ese horario ya no se puede reservar.");
   }
+
+  // Seña: el monto y el método salen de la config del negocio, nunca del formulario.
+  const deposit = depositFor(business);
+  const paymentMethod = deposit === null ? null : pickMethod(input.paymentMethod);
 
   const active = await prisma.booking.count({
     where: {
@@ -129,6 +137,8 @@ export async function createPublicBooking(input: {
             startAt: slot.startAt,
             endAt: slot.endAt,
             price: service.price,
+            depositAmount: deposit,
+            paymentMethod,
           },
           select: { id: true },
         });
@@ -140,6 +150,18 @@ export async function createPublicBooking(input: {
   }
 
   throw new BookingError("Justo alguien tomó ese horario. Elegí otro.");
+}
+
+/** Método de pago elegido. Si hay uno solo habilitado, el formulario no pregunta. */
+function pickMethod(chosen?: string): PaymentMethod {
+  const methods = availableMethods();
+  if (!chosen) {
+    if (methods.length === 1) return methods[0];
+    throw new BookingError("Elegí cómo vas a pagar la seña.");
+  }
+  const method = methods.find((m) => m === chosen);
+  if (!method) throw new BookingError("Elegí cómo vas a pagar la seña.");
+  return method;
 }
 
 function isOverlapError(error: unknown) {
@@ -164,6 +186,9 @@ export async function getBookingForConfirmation(id: string, businessId: string) 
       customerName: true,
       customerPhone: true,
       status: true,
+      depositAmount: true,
+      depositPaid: true,
+      paymentMethod: true,
       service: { select: { name: true, price: true } },
       resource: { select: { name: true } },
     },

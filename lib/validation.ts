@@ -48,6 +48,26 @@ export const ServiceSchema = z.object({
     .pipe(z.number().max(99_999_999, { error: "Precio demasiado alto." })),
 });
 
+// Seña: vacío o 0 = el negocio no pide seña.
+export const DepositSchema = z.object({
+  depositAmount: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/\s/g, "").replace(",", "."))
+    .pipe(
+      z
+        .string()
+        .regex(/^(\d+(\.\d{1,2})?)?$/, { error: "Monto inválido. Ejemplo: 200 o 200,50" }),
+    )
+    .transform((v) => (v === "" ? null : Number(v)))
+    .pipe(
+      z
+        .number()
+        .max(99_999_999, { error: "Monto demasiado alto." })
+        .nullable(),
+    ),
+});
+
 export const ScheduleSchema = z
   .object({
     dayOfWeek: z.coerce.number().int().min(0).max(6, { error: "Día inválido." }),

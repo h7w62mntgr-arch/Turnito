@@ -7,6 +7,7 @@ import { requireOwner } from "@/lib/auth";
 import * as setup from "@/lib/setup";
 import {
   BusinessUpdateSchema,
+  DepositSchema,
   firstError,
   ResourceSchema,
   ScheduleSchema,
@@ -41,6 +42,15 @@ export async function updateBusinessAction(_s: ActionState, formData: FormData) 
       address: text(formData, "address"),
     });
     await setup.updateBusiness(businessId, data);
+  });
+}
+
+export async function updateDepositAction(_s: ActionState, formData: FormData) {
+  return run(async (businessId) => {
+    const { depositAmount } = parse(DepositSchema, {
+      depositAmount: text(formData, "depositAmount"),
+    });
+    await setup.updateDeposit(businessId, depositAmount);
   });
 }
 

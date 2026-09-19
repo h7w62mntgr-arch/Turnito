@@ -32,6 +32,10 @@ model Business {
   leagues        League[] // solo cancha
   // Los cuadros se pueden anotar solos desde la tabla pública (solo cancha).
   teamSignupOpen Boolean      @default(true)
+  // Seña que se pide para reservar. null o 0 = no se pide seña.
+  // Monto fijo, no porcentaje: en la cancha el que reserva paga su parte, no las 10
+  // (ver docs/senia.md). Se descuenta del total al llegar.
+  depositAmount  Decimal?     @db.Decimal(10, 2)
   createdAt      DateTime     @default(now()) @db.Timestamptz(3)
 }
 
@@ -128,7 +132,13 @@ model Booking {
   startAt       DateTime      @db.Timestamptz(3)
   endAt         DateTime      @db.Timestamptz(3)
   status        BookingStatus @default(PENDING)
+  // Cómo dijo que iba a pagar la seña. null = al negocio no le interesa la seña.
+  paymentMethod PaymentMethod?
+  // Monto pedido, congelado al reservar: si el dueño lo cambia después,
+  // las reservas viejas siguen debiendo lo que se les pidió.
+  depositAmount Decimal?      @db.Decimal(10, 2)
   depositPaid   Boolean       @default(false)
+  depositPaidAt DateTime?     @db.Timestamptz(3)
   price         Decimal?      @db.Decimal(10, 2)
   match         Match? // si esta reserva es un partido de liga
   createdAt     DateTime      @default(now()) @db.Timestamptz(3)
@@ -136,6 +146,13 @@ model Booking {
   @@index([businessId, startAt])
   @@index([resourceId, startAt])
   @@index([customerId])
+}
+
+// Cómo paga la seña. EFECTIVO se cobra en el mostrador y lo marca el dueño;
+// MERCADO_PAGO lo confirma el webhook (todavía no construido).
+enum PaymentMethod {
+  EFECTIVO
+  MERCADO_PAGO
 }
 
 enum BookingStatus {

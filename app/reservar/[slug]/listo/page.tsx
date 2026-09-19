@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getBookingForConfirmation, getPublicBusiness, normalizePhone } from "@/lib/booking";
 import { formatPrice } from "@/lib/business-labels";
+import { PAYMENT_METHOD_LABEL } from "@/lib/payments";
 import { formatLongDate, formatTime, today } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Reserva confirmada — Pinta" };
@@ -56,11 +57,28 @@ export default async function ListoPage({ params, searchParams }: PageProps<"/re
                 <dd>{business.address}</dd>
               </>
             )}
+            {booking.depositAmount && !booking.depositPaid && (
+              <>
+                <dt className="text-muted-foreground">Seña</dt>
+                <dd>
+                  {formatPrice(booking.depositAmount)}
+                  {booking.paymentMethod && ` · ${PAYMENT_METHOD_LABEL[booking.paymentMethod].toLowerCase()}`}
+                </dd>
+              </>
+            )}
             <dt className="text-muted-foreground">A nombre de</dt>
             <dd>
               {booking.customerName} · {booking.customerPhone}
             </dd>
           </dl>
+
+          {booking.depositAmount && !booking.depositPaid && (
+            <p className="rounded-lg border bg-muted/40 p-3 text-sm">
+              Acordate de la seña de{" "}
+              <span className="font-semibold">{formatPrice(booking.depositAmount)}</span>: sin eso el
+              lugar no queda guardado.
+            </p>
+          )}
 
           <p className="text-sm text-muted-foreground">
             ¿No podés ir? Avisale al negocio así le da el lugar a otra persona.

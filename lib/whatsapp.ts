@@ -30,17 +30,21 @@ export function reminderMessage({
   date,
   time,
   serviceName,
+  deposit,
 }: {
   customerName: string;
   businessName: string;
   date: CalendarDate;
   time: string;
   serviceName?: string | null;
+  /** Seña sin cobrar, ya formateada. null si no debe nada. */
+  deposit?: string | null;
 }) {
   const firstName = customerName.trim().split(" ")[0];
   const what = serviceName ? ` para ${serviceName}` : "";
+  const owes = deposit ? ` Te queda pendiente la seña de ${deposit}.` : "";
   return (
     `Hola ${firstName}! Te escribo de ${businessName} para recordarte tu reserva${what} ` +
-    `el ${formatLongDate(date)} a las ${time}. ¿Confirmás que venís?`
+    `el ${formatLongDate(date)} a las ${time}.${owes} ¿Confirmás que venís?`
   );
 }

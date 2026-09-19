@@ -7,8 +7,9 @@ import { formatPrice } from "@/lib/business-labels";
 import type { BookingStatus } from "@/lib/generated/prisma/enums";
 import type { CalendarDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import { PAYMENT_METHOD_SHORT } from "@/lib/payments";
 import { reminderMessage, whatsappLink } from "@/lib/whatsapp";
-import { cambiarEstado } from "./actions";
+import { cambiarEstado, cobrarSenia } from "./actions";
 
 const STATUS_STYLE: Record<BookingStatus, string> = {
   PENDING: "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400",
@@ -28,6 +29,9 @@ export function BookingRow({
   date: CalendarDate;
 }) {
   const inactive = booking.status === "CANCELLED" || booking.status === "NO_SHOW";
+  const deposit = booking.depositAmount;
+  // Solo se persigue la seña de las reservas que siguen en pie.
+  const owesDeposit = Boolean(deposit) && !booking.depositPaid && !inactive;
   const whatsapp = whatsappLink(
     booking.customerPhone,
     reminderMessage({
@@ -36,6 +40,7 @@ export function BookingRow({
       date,
       time: booking.time,
       serviceName: booking.service?.name,
+      deposit: owesDeposit && deposit ? formatPrice(deposit) : null,
     }),
   );
 
@@ -61,6 +66,19 @@ export function BookingRow({
         >
           {booking.customerPhone}
         </a>
+        {deposit && (
+          <p className="text-sm">
+            <span className="text-muted-foreground">Seña {formatPrice(deposit)}</span>{" "}
+            {booking.depositPaid ? (
+              <span className="font-medium text-emerald-700 dark:text-emerald-400">cobrada</span>
+            ) : (
+              <span className="font-medium text-amber-700 dark:text-amber-400">
+                sin cobrar
+                {booking.paymentMethod && ` · ${PAYMENT_METHOD_SHORT[booking.paymentMethod]}`}
+              </span>
+            )}
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col items-start gap-2 sm:items-end">
@@ -77,6 +95,15 @@ export function BookingRow({
             >
               WhatsApp
             </a>
+          )}
+          {deposit && !inactive && (
+            <ActionForm action={cobrarSenia} className="gap-1">
+              <input type="hidden" name="id" value={booking.id} />
+              <input type="hidden" name="paid" value={String(!booking.depositPaid)} />
+              <SubmitButton size="sm" variant={booking.depositPaid ? "ghost" : "default"}>
+                {booking.depositPaid ? "Deshacer seña" : "Cobré la seña"}
+              </SubmitButton>
+            </ActionForm>
           )}
           {NEXT_STATUSES[booking.status].map((status) => (
             <ActionForm key={status} action={cambiarEstado} className="gap-1">

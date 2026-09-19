@@ -42,6 +42,9 @@ export async function getDayBookings(businessId: string, date: CalendarDate, tim
       customerName: true,
       customerPhone: true,
       price: true,
+      depositAmount: true,
+      depositPaid: true,
+      paymentMethod: true,
       service: { select: { name: true } },
       resource: { select: { name: true } },
     },
@@ -80,6 +83,29 @@ export async function getDayCounts(
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return counts;
+}
+
+/**
+ * El dueño marca la seña como cobrada (o deshace si se equivocó).
+ * Cobrar la seña de una reserva sin confirmar la confirma: es lo que quiere decir al marcarla.
+ */
+export async function setDepositPaid(businessId: string, bookingId: string, paid: boolean) {
+  const booking = await prisma.booking.findFirst({
+    where: { id: bookingId, businessId },
+    select: { id: true, status: true, depositPaid: true, depositAmount: true },
+  });
+  if (!booking) throw new SetupError("No encontramos esa reserva.");
+  if (!booking.depositAmount) throw new SetupError("Esta reserva no tiene seña.");
+  if (booking.depositPaid === paid) return;
+
+  await prisma.booking.update({
+    where: { id: booking.id },
+    data: {
+      depositPaid: paid,
+      depositPaidAt: paid ? new Date() : null,
+      ...(paid && booking.status === "PENDING" ? { status: "CONFIRMED" as const } : {}),
+    },
+  });
 }
 
 export async function setBookingStatus(

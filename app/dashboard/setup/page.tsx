@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { requireOwner } from "@/lib/auth";
 import { formatPrice, LABELS, WEEK_DAYS } from "@/lib/business-labels";
+import { depositFor, PAYMENT_METHOD_LABEL, availableMethods } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
 import {
   addScheduleAction,
@@ -18,6 +19,7 @@ import {
   toggleResourceAction,
   toggleServiceAction,
   updateBusinessAction,
+  updateDepositAction,
 } from "./actions";
 
 export const metadata: Metadata = { title: "Configuración — Pinta" };
@@ -35,6 +37,8 @@ export default async function SetupPage() {
     }),
   ]);
   const resourceName = new Map(resources.map((r) => [r.id, r.name]));
+  const deposit = depositFor(business);
+  const methods = availableMethods();
 
   return (
     <div className="flex flex-col gap-6">
@@ -81,6 +85,42 @@ export default async function SetupPage() {
               Guardar
             </SubmitButton>
           </ActionForm>
+        </CardContent>
+      </Card>
+
+      {/* --- Seña --- */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Seña</CardTitle>
+          <CardDescription>
+            Lo que se paga por adelantado para que la reserva valga. Es un monto fijo, no el
+            total: {business.type === "CANCHA"
+              ? "la cancha la pagan entre todos, el que reserva pone su parte."
+              : "se descuenta de lo que paga al final."}{" "}
+            Dejalo vacío si no querés pedir seña.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <ActionForm action={updateDepositAction}>
+            <div className="flex flex-col gap-1.5 sm:max-w-48">
+              <Label htmlFor="deposit-amount">Monto de la seña</Label>
+              <Input
+                id="deposit-amount"
+                name="depositAmount"
+                inputMode="decimal"
+                placeholder="200"
+                defaultValue={deposit ?? ""}
+              />
+            </div>
+            <SubmitButton pendingText="Guardando…" className="self-start">
+              Guardar
+            </SubmitButton>
+          </ActionForm>
+          <p className="text-sm text-muted-foreground">
+            {deposit === null
+              ? "Hoy no pedís seña: se reserva sin pagar nada."
+              : `Se cobra ${methods.map((m) => PAYMENT_METHOD_LABEL[m].toLowerCase()).join(" o ")}. La marcás cobrada desde la agenda.`}
+          </p>
         </CardContent>
       </Card>
 

@@ -53,7 +53,10 @@ Se construye **una sola cosa**. Cada sabor activa o no el módulo de ranking. Ma
 
 ### Sabor Cancha (todo lo de arriba +)
 6. Recurso = cada cancha. Servicio = franja horaria con precio.
-7. **Seña / pago anticipado** vía Mercado Pago para bajar el no-show ("si no paga, no reserva").
+7. **Seña / pago anticipado** para bajar el no-show. Monto **fijo** (del orden de lo que
+   pone un jugador), no el total: la cancha la pagan diez entre todos y el que reserva no
+   le financia la noche a los otros nueve. Efectivo es un método de primera clase, no un
+   parche; Mercado Pago entra después. Ver [senia.md](senia.md).
 8. **Módulo Ranking/Liga** (el diferencial — ver sección 5).
 
 ---

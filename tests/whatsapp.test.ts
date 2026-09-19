@@ -39,5 +39,20 @@ describe("whatsapp", () => {
     assert.match(message, /Barbería Don Juan/);
     assert.match(message, /martes 22 de setiembre a las 10:30/);
     assert.match(message, /para Corte/);
+    // Sin seña pendiente no se menciona el tema.
+    assert.ok(!message.includes("seña"));
+  });
+
+  it("le recuerda la seña que quedó sin pagar", () => {
+    const message = reminderMessage({
+      customerName: "Juan Pérez",
+      businessName: "Cancha El Bajo",
+      date: parseDate("2026-09-22")!,
+      time: "20:00",
+      serviceName: "Fútbol 5",
+      deposit: "$ 200",
+    });
+    assert.match(message, /Te queda pendiente la seña de \$ 200\./);
+    assert.match(message, /¿Confirmás que venís\?$/);
   });
 });

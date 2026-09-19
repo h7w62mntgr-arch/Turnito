@@ -73,6 +73,11 @@ export async function updateBusiness(
   await prisma.business.update({ where: { id: businessId }, data });
 }
 
+/** Monto de la seña. null = el negocio deja de pedirla. */
+export async function updateDeposit(businessId: string, depositAmount: number | null) {
+  await prisma.business.update({ where: { id: businessId }, data: { depositAmount } });
+}
+
 // --- Recursos (profesionales / canchas) ---
 
 export async function createResource(businessId: string, name: string) {

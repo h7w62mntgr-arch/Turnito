@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { getAvailability, getNextAvailableDays } from "@/lib/availability";
 import { BOOKING_WINDOW_DAYS, getPublicBusiness, MIN_NOTICE_MIN } from "@/lib/booking";
 import { formatPrice, LABELS } from "@/lib/business-labels";
+import { availableMethods, depositFor } from "@/lib/payments";
 import { cn } from "@/lib/utils";
 import { formatDate, formatLongDate, parseDate } from "@/lib/time";
 import { BookingForm } from "./booking-form";
@@ -27,6 +28,7 @@ export default async function ReservarPage({ params, searchParams }: PageProps<"
   if (!business) notFound();
 
   const labels = LABELS[business.type];
+  const deposit = depositFor(business);
   const selectedService =
     business.services.find((s) => s.id === query.servicio) ??
     (business.services.length === 1 ? business.services[0] : null);
@@ -212,6 +214,8 @@ export default async function ReservarPage({ params, searchParams }: PageProps<"
                     slug={slug}
                     serviceId={selectedService.id}
                     startAt={selectedSlot.startAt.toISOString()}
+                    deposit={deposit === null ? null : formatPrice(deposit)}
+                    methods={availableMethods()}
                   />
                 </CardContent>
               </Card>
